@@ -314,6 +314,14 @@ void drawPercentMark(LGFX_Sprite& g, int x, int y, uint16_t color) {
   g.drawLine(x + 8, y - 9, x - 6, y + 9, color);
 }
 
+void drawRadialLine(LGFX_Sprite& g, float angle, int inner, int outer, uint16_t color) {
+  const int x1 = clockface::Cx + lroundf(cosf(angle) * inner);
+  const int y1 = clockface::Cy + lroundf(sinf(angle) * inner);
+  const int x2 = clockface::Cx + lroundf(cosf(angle) * outer);
+  const int y2 = clockface::Cy + lroundf(sinf(angle) * outer);
+  g.drawLine(x1, y1, x2, y2, color);
+}
+
 const char* timezoneAbbreviation(const tm& localTm) {
   if (localTm.tm_isdst > 0 && tzname[1] && tzname[1][0]) {
     return tzname[1];
@@ -331,21 +339,19 @@ void drawFace(LGFX_Sprite& g, const tm* localTm) {
 
   for (int i = 0; i < 60; ++i) {
     const float angle = (i * 6.0f - 90.0f) * DEG_TO_RAD;
-    const int outer = 105;
-    const int inner = (i % 5 == 0) ? 90 : 98;
-    const uint16_t color = (i % 5 == 0) ? clockface::White : clockface::Gray;
-    const int x1 = clockface::Cx + cosf(angle) * inner;
-    const int y1 = clockface::Cy + sinf(angle) * inner;
-    const int x2 = clockface::Cx + cosf(angle) * outer;
-    const int y2 = clockface::Cy + sinf(angle) * outer;
-    g.drawLine(x1, y1, x2, y2, color);
+    const bool fiveSecondTick = (i % 5 == 0);
+    const int centerRadius = 101;
+    const int halfLength = fiveSecondTick ? 11 : 4;
+    const uint16_t color = fiveSecondTick ? clockface::White : clockface::Gray;
+    drawRadialLine(g, angle, centerRadius - halfLength, centerRadius + halfLength,
+                   color);
   }
 
   if (localTm) {
     const float angle = (localTm->tm_sec * 6.0f - 90.0f) * DEG_TO_RAD;
-    const int x = clockface::Cx + cosf(angle) * 82;
-    const int y = clockface::Cy + sinf(angle) * 82;
-    g.fillCircle(x, y, 3, clockface::Green);
+    drawRadialLine(g, angle - 0.012f, 106, 118, clockface::White);
+    drawRadialLine(g, angle, 106, 118, clockface::White);
+    drawRadialLine(g, angle + 0.012f, 106, 118, clockface::White);
   }
 }
 
