@@ -332,7 +332,7 @@ const char* timezoneAbbreviation(const tm& localTm) {
   return "LOCAL";
 }
 
-void drawFace(LGFX_Sprite& g, const tm* localTm) {
+void drawFace(LGFX_Sprite& g) {
   g.fillScreen(clockface::Black);
 
   for (int i = 0; i < 60; ++i) {
@@ -343,15 +343,15 @@ void drawFace(LGFX_Sprite& g, const tm* localTm) {
     const uint16_t color = fiveSecondTick ? clockface::White : clockface::Gray;
     drawRadialLine(g, angle, innerRadius, innerRadius + tickLength, color);
   }
+}
 
-  if (localTm) {
-    const float angle = (localTm->tm_sec * 6.0f - 90.0f) * DEG_TO_RAD;
-    drawRadialLine(g, angle - 0.020f, 82, 116, clockface::White);
-    drawRadialLine(g, angle - 0.010f, 82, 116, clockface::White);
-    drawRadialLine(g, angle, 82, 116, clockface::White);
-    drawRadialLine(g, angle + 0.010f, 82, 116, clockface::White);
-    drawRadialLine(g, angle + 0.020f, 82, 116, clockface::White);
-  }
+void drawSecondSweep(LGFX_Sprite& g, const tm& localTm) {
+  const float angle = (localTm.tm_sec * 6.0f - 90.0f) * DEG_TO_RAD;
+  drawRadialLine(g, angle - 0.020f, 82, 116, clockface::White);
+  drawRadialLine(g, angle - 0.010f, 82, 116, clockface::White);
+  drawRadialLine(g, angle, 82, 116, clockface::White);
+  drawRadialLine(g, angle + 0.010f, 82, 116, clockface::White);
+  drawRadialLine(g, angle + 0.020f, 82, 116, clockface::White);
 }
 
 void drawStatusDots(LGFX_Sprite& g) {
@@ -362,7 +362,7 @@ void drawClockFrame() {
   const bool haveTime = currentTime(localTm);
   timeOk = haveTime;
 
-  drawFace(frame, haveTime ? &localTm : nullptr);
+  drawFace(frame);
   drawStatusDots(frame);
 
   char line[32];
@@ -401,6 +401,10 @@ void drawClockFrame() {
 
   if (WiFi.status() != WL_CONNECTED) {
     drawText(frame, "SETUP 192.168.44.1", 120, 42, 1, clockface::Amber);
+  }
+
+  if (haveTime) {
+    drawSecondSweep(frame, localTm);
   }
 
   frame.pushSprite(0, 0);
