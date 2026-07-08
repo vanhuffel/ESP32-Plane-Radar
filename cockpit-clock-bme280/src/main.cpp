@@ -334,24 +334,23 @@ const char* timezoneAbbreviation(const tm& localTm) {
 
 void drawFace(LGFX_Sprite& g, const tm* localTm) {
   g.fillScreen(clockface::Black);
-  g.drawCircle(clockface::Cx, clockface::Cy, 118, clockface::Dim);
-  g.drawCircle(clockface::Cx, clockface::Cy, 112, clockface::Gray);
 
   for (int i = 0; i < 60; ++i) {
     const float angle = (i * 6.0f - 90.0f) * DEG_TO_RAD;
     const bool fiveSecondTick = (i % 5 == 0);
-    const int centerRadius = 101;
-    const int halfLength = fiveSecondTick ? 11 : 4;
+    const int innerRadius = 92;
+    const int tickLength = fiveSecondTick ? 16 : 8;
     const uint16_t color = fiveSecondTick ? clockface::White : clockface::Gray;
-    drawRadialLine(g, angle, centerRadius - halfLength, centerRadius + halfLength,
-                   color);
+    drawRadialLine(g, angle, innerRadius, innerRadius + tickLength, color);
   }
 
   if (localTm) {
     const float angle = (localTm->tm_sec * 6.0f - 90.0f) * DEG_TO_RAD;
-    drawRadialLine(g, angle - 0.012f, 106, 118, clockface::White);
-    drawRadialLine(g, angle, 106, 118, clockface::White);
-    drawRadialLine(g, angle + 0.012f, 106, 118, clockface::White);
+    drawRadialLine(g, angle - 0.020f, 82, 116, clockface::White);
+    drawRadialLine(g, angle - 0.010f, 82, 116, clockface::White);
+    drawRadialLine(g, angle, 82, 116, clockface::White);
+    drawRadialLine(g, angle + 0.010f, 82, 116, clockface::White);
+    drawRadialLine(g, angle + 0.020f, 82, 116, clockface::White);
   }
 }
 
