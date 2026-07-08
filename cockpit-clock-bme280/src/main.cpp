@@ -127,6 +127,8 @@ WiFiManagerParameter weatherLatParam("weather_lat", "Weather latitude",
 WiFiManagerParameter weatherLonParam("weather_lon", "Weather longitude",
                                      weatherLonValue, sizeof(weatherLonValue),
                                      " type=\"number\" step=\"0.000001\"");
+constexpr char FindClockMenuHtml[] =
+    "<form action='/find' method='get'><button>Find This Clock</button></form><br/>\n";
 
 String htmlEscape(const char* text) {
   String out;
@@ -456,24 +458,76 @@ bool connectSavedWifi() {
   return false;
 }
 
+void appendFindClockPanel(String& page) {
+  page += F("<div class='panel'><h2>Find This Clock</h2>");
+  if (wifiLinkUp()) {
+    page += F("<p>Connected to Wi-Fi as <strong>");
+    page += htmlEscape(clockface::Hostname);
+    page += F(".local</strong>.</p><p><a href='http://");
+    page += htmlEscape(clockface::Hostname);
+    page += F(".local/'>http://");
+    page += htmlEscape(clockface::Hostname);
+    page += F(".local/</a></p><p>Current IP: <strong>");
+    page += WiFi.localIP().toString();
+    page += F("</strong></p>");
+  } else {
+    page += F("<p>You are on the temporary setup access point. After saving Wi-Fi, "
+              "this AP will disappear and the clock will join your Wi-Fi network.</p>");
+  }
+  page += F("<ol><li>Save Wi-Fi from this portal.</li>"
+            "<li>Reconnect your phone or computer to that same Wi-Fi network.</li>"
+            "<li>Open <strong>http://cockpit-clock.local/</strong>.</li>"
+            "<li>If that name does not open, find <strong>cockpit-clock</strong> "
+            "in your router's client list and use its IP address.</li></ol>"
+            "<p class='hint'>The clock face intentionally keeps the IP address off-screen.</p>"
+            "</div>");
+}
+
+void handleFindClockPage() {
+  String page;
+  page.reserve(3200);
+  page += F("<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>Find Cockpit Clock</title><style>"
+            "body{text-align:center;font-family:verdana;margin:0;padding:24px;background:#f7f7f7;color:#111}"
+            ".wrap{text-align:left;display:inline-block;min-width:260px;max-width:520px;width:100%}"
+            "h1{font-size:1.6rem;margin:.2rem 0 1rem}h2{font-size:1.1rem;margin:.2rem 0 .7rem}"
+            "button{box-sizing:border-box;width:100%;padding:10px;margin:6px 0;border-radius:.3rem;"
+            "cursor:pointer;border:0;background:#1fa3ec;color:#fff;line-height:2rem;font-size:1.1rem}"
+            ".panel{background:#fff;border:1px solid #ddd;border-left:5px solid #1fa3ec;"
+            "padding:14px 16px;margin:14px 0;border-radius:.3rem}"
+            ".hint{font-size:.86rem;color:#555}a{color:#111;font-weight:700;text-decoration:none}"
+            "ol{padding-left:1.4rem}</style></head><body><div class='wrap'>"
+            "<h1>Cockpit Clock</h1>");
+  appendFindClockPanel(page);
+  page += F("<form action='/' method='get'><button type='submit'>Back</button></form>"
+            "</div></body></html>");
+
+  wifiManager.server->send(200, F("text/html"), page);
+}
+
 void handleClockSetupPage() {
   String page;
-  page.reserve(5200);
+  page.reserve(6400);
   page += F("<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             "<title>Cockpit Clock Setup</title><style>"
             "body{text-align:center;font-family:verdana;margin:0;padding:24px;background:#f7f7f7;color:#111}"
             ".wrap{text-align:left;display:inline-block;min-width:260px;max-width:520px;width:100%}"
-            "h1{font-size:1.6rem;margin:.2rem 0 1rem}"
+            "h1{font-size:1.6rem;margin:.2rem 0 1rem}h2{font-size:1.1rem;margin:.2rem 0 .7rem}"
             "label{display:block;font-weight:700;margin-top:14px}"
             "input,select,button{box-sizing:border-box;width:100%;padding:10px;margin:6px 0;font-size:1rem;border-radius:.3rem}"
             "input,select{border:1px solid #bbb;background:white}"
             "button{cursor:pointer;border:0;background:#1fa3ec;color:#fff;line-height:2rem;font-size:1.1rem}"
             ".hint{font-size:.86rem;color:#555;margin:0 0 8px}"
+            ".panel{background:#fff;border:1px solid #ddd;border-left:5px solid #1fa3ec;"
+            "padding:14px 16px;margin:14px 0;border-radius:.3rem}"
+            "ol{padding-left:1.4rem}"
             "a{color:#111;font-weight:700;text-decoration:none}"
             "</style></head><body><div class='wrap'>"
-            "<h1>Cockpit Clock Setup</h1>"
-            "<form method='POST' action='/paramsave'>"
+            "<h1>Cockpit Clock Setup</h1>");
+  appendFindClockPanel(page);
+  page += F("<form method='POST' action='/paramsave'>"
             "<label for='timezone_picker'>Timezone</label>"
             "<select id='timezone_picker' onchange=\"if(this.value)document.getElementById('timezone').value=this.value\">");
 
@@ -528,6 +582,7 @@ void registerClockSetupRoutes() {
   if (!wifiManager.server) {
     return;
   }
+  wifiManager.server->on(F("/find"), HTTP_GET, handleFindClockPage);
   wifiManager.server->on(F("/param"), HTTP_GET, handleClockSetupPage);
 }
 
@@ -574,8 +629,10 @@ void setupWifi() {
   wifiManager.addParameter(&timezoneParam);
   wifiManager.addParameter(&weatherLatParam);
   wifiManager.addParameter(&weatherLonParam);
-  const char* menu[] = {"wifi", "param", "info", "restart", "exit"};
-  wifiManager.setMenu(menu, 5);
+  wifiManager.setTitle("Cockpit Clock");
+  wifiManager.setCustomMenuHTML(FindClockMenuHtml);
+  const char* menu[] = {"wifi", "param", "custom", "info", "restart", "exit"};
+  wifiManager.setMenu(menu, 6);
   wifiManager.setAPStaticIPConfig(clockface::PortalIp, clockface::PortalGateway,
                                   clockface::PortalSubnet);
 

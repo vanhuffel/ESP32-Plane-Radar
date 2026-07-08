@@ -77,8 +77,19 @@ If no saved Wi-Fi credentials exist, the device starts a setup access point:
 - SSID: `CockpitClock-Setup`
 - Setup URL: `http://192.168.44.1`
 
-The portal lets you choose Wi-Fi. The separate **Setup** page lets you configure
-clock/weather fields:
+Typical phone setup flow:
+
+1. Flash the ESP32-C3.
+2. On your phone, join Wi-Fi network `CockpitClock-Setup`.
+3. Open `http://192.168.44.1` if the captive portal does not open itself.
+4. Choose **Configure WiFi** and save your home Wi-Fi.
+5. Reconnect your phone to that same home Wi-Fi.
+6. Open `http://cockpit-clock.local/`.
+
+The portal also includes **Find This Clock**, which explains this flow on the
+temporary setup AP and shows the clock's LAN IP after it joins Wi-Fi.
+
+The separate **Setup** page lets you configure clock/weather fields:
 
 | Field | Example | Purpose |
 | --- | --- | --- |
@@ -103,8 +114,10 @@ device's LAN address:
 
 The serial log prints the current IP address at boot. If `.local` does not
 resolve on your computer or phone, use the IP address from your router's client
-list or the serial monitor. Choose **Setup** on the portal home page to change
-timezone and weather location.
+list or the serial monitor. The portal home page also has **Find This Clock**,
+which shows the current LAN address without putting the IP on the clock face.
+Choose **Setup** on the portal home page to change timezone and weather
+location.
 
 ## Timezones
 
