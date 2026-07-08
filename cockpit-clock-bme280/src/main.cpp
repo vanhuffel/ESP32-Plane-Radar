@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Adafruit_BME280.h>
 #include <ArduinoJson.h>
+#include <ESPmDNS.h>
 #include <HTTPClient.h>
 #include <LovyanGFX.hpp>
 #include <Preferences.h>
@@ -24,6 +25,7 @@ constexpr int W = 240;
 constexpr int H = 240;
 constexpr int Cx = 120;
 constexpr int Cy = 120;
+constexpr char Hostname[] = "cockpit-clock";
 constexpr char WifiApName[] = "CockpitClock-Setup";
 const IPAddress PortalIp(192, 168, 44, 1);
 const IPAddress PortalGateway(192, 168, 44, 1);
@@ -380,6 +382,7 @@ bool waitForWifi(unsigned long timeoutMs) {
 bool connectSavedWifi() {
   Serial.println("Connecting to saved WiFi credentials.");
   WiFi.mode(WIFI_STA);
+  WiFi.setHostname(clockface::Hostname);
   WiFi.setSleep(false);
   WiFi.setAutoReconnect(true);
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
@@ -400,6 +403,17 @@ bool connectSavedWifi() {
 
   Serial.println("Saved WiFi could not connect.");
   return false;
+}
+
+void startLanWebPortal() {
+  wifiManager.startWebPortal();
+  Serial.printf("Config portal: http://%s/\n", WiFi.localIP().toString().c_str());
+  if (MDNS.begin(clockface::Hostname)) {
+    MDNS.addService("http", "tcp", 80);
+    Serial.printf("mDNS config portal: http://%s.local/\n", clockface::Hostname);
+  } else {
+    Serial.println("mDNS failed; use the printed IP address for config.");
+  }
 }
 
 void startSetupPortal() {
@@ -437,7 +451,9 @@ void setupWifi() {
                                   clockface::PortalSubnet);
 
   wifiOk = connectSavedWifi();
-  if (!wifiOk) {
+  if (wifiOk) {
+    startLanWebPortal();
+  } else {
     startSetupPortal();
   }
 }

@@ -91,6 +91,18 @@ Change them in the setup portal for your own weather feed before using OAT.
 After saving Wi-Fi credentials, the device restarts and reconnects
 automatically.
 
+## Reconfigure After Wi-Fi Is Saved
+
+When the clock is connected to Wi-Fi, the config page stays available on the
+device's LAN address:
+
+- `http://cockpit-clock.local/`
+- `http://<device-ip>/`
+
+The serial log prints the current IP address at boot. If `.local` does not
+resolve on your computer or phone, use the IP address from your router's client
+list or the serial monitor.
+
 ## Timezones
 
 The firmware uses POSIX timezone strings because that is what the ESP32 Arduino
