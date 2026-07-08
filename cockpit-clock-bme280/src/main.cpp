@@ -29,8 +29,8 @@ const IPAddress PortalIp(192, 168, 44, 1);
 const IPAddress PortalGateway(192, 168, 44, 1);
 const IPAddress PortalSubnet(255, 255, 255, 0);
 constexpr char DefaultTimezone[] = "EST5EDT,M3.2.0/2,M11.1.0/2";
-constexpr float WeatherLat = 33.3509419f;
-constexpr float WeatherLon = -84.5119622f;
+constexpr char DefaultWeatherLat[] = "33.6407";
+constexpr char DefaultWeatherLon[] = "-84.4277";
 constexpr unsigned long SensorIntervalMs = 5000;
 constexpr unsigned long WeatherIntervalMs = 15UL * 60UL * 1000UL;
 constexpr unsigned long FrameIntervalMs = 1000;
@@ -97,6 +97,14 @@ unsigned long restartAtMs = 0;
 char timezoneValue[64] = "EST5EDT,M3.2.0/2,M11.1.0/2";
 WiFiManagerParameter timezoneParam("timezone", "Timezone", timezoneValue,
                                    sizeof(timezoneValue));
+char weatherLatValue[16] = "33.6407";
+char weatherLonValue[16] = "-84.4277";
+WiFiManagerParameter weatherLatParam("weather_lat", "Weather latitude",
+                                     weatherLatValue, sizeof(weatherLatValue),
+                                     " type=\"number\" step=\"0.000001\"");
+WiFiManagerParameter weatherLonParam("weather_lon", "Weather longitude",
+                                     weatherLonValue, sizeof(weatherLonValue),
+                                     " type=\"number\" step=\"0.000001\"");
 
 bool beginBme() {
   if (bme.begin(0x77, &Wire)) {
@@ -130,7 +138,7 @@ void fetchOutdoorWeather() {
   snprintf(url, sizeof(url),
            "http://api.open-meteo.com/v1/forecast?latitude=%.6f&longitude=%.6f"
            "&current=temperature_2m&temperature_unit=fahrenheit&forecast_days=1",
-           clockface::WeatherLat, clockface::WeatherLon);
+           atof(weatherLatValue), atof(weatherLonValue));
 
   HTTPClient http;
   http.setTimeout(7000);
@@ -163,29 +171,56 @@ void fetchOutdoorWeather() {
   }
 }
 
-void loadTimezone() {
+void loadConfig() {
   strlcpy(timezoneValue, clockface::DefaultTimezone, sizeof(timezoneValue));
+  strlcpy(weatherLatValue, clockface::DefaultWeatherLat, sizeof(weatherLatValue));
+  strlcpy(weatherLonValue, clockface::DefaultWeatherLon, sizeof(weatherLonValue));
   if (prefs.begin("clock", true)) {
     const String saved = prefs.getString("tz", clockface::DefaultTimezone);
+    const String savedLat = prefs.getString("wx_lat", clockface::DefaultWeatherLat);
+    const String savedLon = prefs.getString("wx_lon", clockface::DefaultWeatherLon);
     prefs.end();
     if (saved.length() > 0 && saved.length() < sizeof(timezoneValue)) {
       strlcpy(timezoneValue, saved.c_str(), sizeof(timezoneValue));
     }
+    if (savedLat.length() > 0 && savedLat.length() < sizeof(weatherLatValue)) {
+      strlcpy(weatherLatValue, savedLat.c_str(), sizeof(weatherLatValue));
+    }
+    if (savedLon.length() > 0 && savedLon.length() < sizeof(weatherLonValue)) {
+      strlcpy(weatherLonValue, savedLon.c_str(), sizeof(weatherLonValue));
+    }
   }
   timezoneParam.setValue(timezoneValue, sizeof(timezoneValue));
+  weatherLatParam.setValue(weatherLatValue, sizeof(weatherLatValue));
+  weatherLonParam.setValue(weatherLonValue, sizeof(weatherLonValue));
 }
 
-void saveTimezoneFromPortal() {
-  const char* candidate = timezoneParam.getValue();
-  if (!candidate || strlen(candidate) == 0 || strlen(candidate) >= sizeof(timezoneValue)) {
-    return;
+void saveConfigFromPortal() {
+  const char* timezoneCandidate = timezoneParam.getValue();
+  if (timezoneCandidate && strlen(timezoneCandidate) > 0 &&
+      strlen(timezoneCandidate) < sizeof(timezoneValue)) {
+    strlcpy(timezoneValue, timezoneCandidate, sizeof(timezoneValue));
   }
-  strlcpy(timezoneValue, candidate, sizeof(timezoneValue));
+
+  const char* latCandidate = weatherLatParam.getValue();
+  const char* lonCandidate = weatherLonParam.getValue();
+  if (latCandidate && strlen(latCandidate) > 0 &&
+      strlen(latCandidate) < sizeof(weatherLatValue)) {
+    strlcpy(weatherLatValue, latCandidate, sizeof(weatherLatValue));
+  }
+  if (lonCandidate && strlen(lonCandidate) > 0 &&
+      strlen(lonCandidate) < sizeof(weatherLonValue)) {
+    strlcpy(weatherLonValue, lonCandidate, sizeof(weatherLonValue));
+  }
+
   if (prefs.begin("clock", false)) {
     prefs.putString("tz", timezoneValue);
+    prefs.putString("wx_lat", weatherLatValue);
+    prefs.putString("wx_lon", weatherLonValue);
     prefs.end();
   }
-  Serial.printf("Timezone saved: %s\n", timezoneValue);
+  Serial.printf("Config saved: TZ=%s weather=%s,%s\n", timezoneValue,
+                weatherLatValue, weatherLonValue);
 }
 
 bool currentTime(tm& localTm) {
@@ -385,17 +420,19 @@ void setupWifi() {
   wifiManager.setWiFiAutoReconnect(true);
   wifiManager.setSaveConnect(false);
   wifiManager.setSaveConfigCallback([]() {
-    saveTimezoneFromPortal();
+    saveConfigFromPortal();
     restartAfterWifiSave = true;
     restartAtMs = millis() + 3000;
     Serial.println("WiFi credentials saved; restarting.");
   });
   wifiManager.setSaveParamsCallback([]() {
-    saveTimezoneFromPortal();
+    saveConfigFromPortal();
     setenv("TZ", timezoneValue, 1);
     tzset();
   });
   wifiManager.addParameter(&timezoneParam);
+  wifiManager.addParameter(&weatherLatParam);
+  wifiManager.addParameter(&weatherLonParam);
   wifiManager.setAPStaticIPConfig(clockface::PortalIp, clockface::PortalGateway,
                                   clockface::PortalSubnet);
 
@@ -410,7 +447,7 @@ void setup() {
   delay(300);
   Serial.println();
   Serial.println("Cockpit Clock + BME280");
-  loadTimezone();
+  loadConfig();
 
   display.init();
   display.setRotation(0);

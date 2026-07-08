@@ -6,6 +6,13 @@
 
 Firmware for an **ESP32-C3 Super Mini** and a **1.28″ round GC9A01** display (240×240). Shows a circular **ADS-B radar** around your configured location, with **WiFiManager** for first-time setup.
 
+## Alternate Firmware
+
+This branch also includes [Cockpit Clock + BME280](cockpit-clock-bme280/), an
+aviation-style round clock for the same ESP32-C3 and GC9A01 display, with a
+BME280 cabin sensor, local NTP time, and outside air temperature from a
+configurable weather location.
+
 ## What it does
 
 1. **Wi‑Fi setup** (if needed) — captive portal on AP **`PlaneRadar-Setup`**
