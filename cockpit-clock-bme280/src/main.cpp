@@ -81,6 +81,26 @@ struct SensorReadings {
   float oatF = NAN;
 };
 
+struct TimezoneOption {
+  const char* label;
+  const char* value;
+};
+
+const TimezoneOption TimezoneOptions[] = {
+    {"UTC", "UTC0"},
+    {"US Eastern", "EST5EDT,M3.2.0/2,M11.1.0/2"},
+    {"US Central", "CST6CDT,M3.2.0/2,M11.1.0/2"},
+    {"US Mountain", "MST7MDT,M3.2.0/2,M11.1.0/2"},
+    {"US Arizona", "MST7"},
+    {"US Pacific", "PST8PDT,M3.2.0/2,M11.1.0/2"},
+    {"Alaska", "AKST9AKDT,M3.2.0/2,M11.1.0/2"},
+    {"Hawaii", "HST10"},
+    {"UK", "GMT0BST,M3.5.0/1,M10.5.0/2"},
+    {"Central Europe", "CET-1CEST,M3.5.0/2,M10.5.0/3"},
+    {"Japan", "JST-9"},
+    {"Australia Eastern", "AEST-10AEDT,M10.1.0/2,M4.1.0/3"},
+};
+
 CockpitDisplay display;
 LGFX_Sprite frame(&display);
 Adafruit_BME280 bme;
@@ -107,6 +127,37 @@ WiFiManagerParameter weatherLatParam("weather_lat", "Weather latitude",
 WiFiManagerParameter weatherLonParam("weather_lon", "Weather longitude",
                                      weatherLonValue, sizeof(weatherLonValue),
                                      " type=\"number\" step=\"0.000001\"");
+
+String htmlEscape(const char* text) {
+  String out;
+  if (!text) {
+    return out;
+  }
+  while (*text) {
+    switch (*text) {
+      case '&':
+        out += F("&amp;");
+        break;
+      case '<':
+        out += F("&lt;");
+        break;
+      case '>':
+        out += F("&gt;");
+        break;
+      case '"':
+        out += F("&quot;");
+        break;
+      case '\'':
+        out += F("&#39;");
+        break;
+      default:
+        out += *text;
+        break;
+    }
+    ++text;
+  }
+  return out;
+}
 
 bool beginBme() {
   if (bme.begin(0x77, &Wire)) {
@@ -405,6 +456,81 @@ bool connectSavedWifi() {
   return false;
 }
 
+void handleClockSetupPage() {
+  String page;
+  page.reserve(5200);
+  page += F("<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>Cockpit Clock Setup</title><style>"
+            "body{text-align:center;font-family:verdana;margin:0;padding:24px;background:#f7f7f7;color:#111}"
+            ".wrap{text-align:left;display:inline-block;min-width:260px;max-width:520px;width:100%}"
+            "h1{font-size:1.6rem;margin:.2rem 0 1rem}"
+            "label{display:block;font-weight:700;margin-top:14px}"
+            "input,select,button{box-sizing:border-box;width:100%;padding:10px;margin:6px 0;font-size:1rem;border-radius:.3rem}"
+            "input,select{border:1px solid #bbb;background:white}"
+            "button{cursor:pointer;border:0;background:#1fa3ec;color:#fff;line-height:2rem;font-size:1.1rem}"
+            ".hint{font-size:.86rem;color:#555;margin:0 0 8px}"
+            "a{color:#111;font-weight:700;text-decoration:none}"
+            "</style></head><body><div class='wrap'>"
+            "<h1>Cockpit Clock Setup</h1>"
+            "<form method='POST' action='/paramsave'>"
+            "<label for='timezone_picker'>Timezone</label>"
+            "<select id='timezone_picker' onchange=\"if(this.value)document.getElementById('timezone').value=this.value\">");
+
+  bool knownTimezone = false;
+  for (const TimezoneOption& option : TimezoneOptions) {
+    if (strcmp(timezoneValue, option.value) == 0) {
+      knownTimezone = true;
+      break;
+    }
+  }
+
+  page += F("<option value=''");
+  if (!knownTimezone) {
+    page += F(" selected");
+  }
+  page += F(">Custom / advanced</option>");
+
+  for (const TimezoneOption& option : TimezoneOptions) {
+    page += F("<option value='");
+    page += htmlEscape(option.value);
+    page += F("'");
+    if (strcmp(timezoneValue, option.value) == 0) {
+      page += F(" selected");
+    }
+    page += F(">");
+    page += htmlEscape(option.label);
+    page += F("</option>");
+  }
+
+  page += F("</select>"
+            "<label for='timezone'>Timezone string</label>"
+            "<input id='timezone' name='timezone' maxlength='63' value='");
+  page += htmlEscape(timezoneValue);
+  page += F("' autocorrect='off' autocapitalize='none'>"
+            "<p class='hint'>Use the picker for common zones, or edit the POSIX string directly.</p>"
+            "<label for='weather_lat'>Weather latitude</label>"
+            "<input id='weather_lat' name='weather_lat' type='number' step='0.000001' value='");
+  page += htmlEscape(weatherLatValue);
+  page += F("'>"
+            "<label for='weather_lon'>Weather longitude</label>"
+            "<input id='weather_lon' name='weather_lon' type='number' step='0.000001' value='");
+  page += htmlEscape(weatherLonValue);
+  page += F("'>"
+            "<button type='submit'>Save</button>"
+            "</form><br><form action='/' method='get'><button type='submit'>Back</button></form>"
+            "</div></body></html>");
+
+  wifiManager.server->send(200, F("text/html"), page);
+}
+
+void registerClockSetupRoutes() {
+  if (!wifiManager.server) {
+    return;
+  }
+  wifiManager.server->on(F("/param"), HTTP_GET, handleClockSetupPage);
+}
+
 void startLanWebPortal() {
   wifiManager.startWebPortal();
   Serial.printf("Config portal: http://%s/\n", WiFi.localIP().toString().c_str());
@@ -433,6 +559,7 @@ void setupWifi() {
   wifiManager.setConfigPortalBlocking(false);
   wifiManager.setWiFiAutoReconnect(true);
   wifiManager.setSaveConnect(false);
+  wifiManager.setWebServerCallback(registerClockSetupRoutes);
   wifiManager.setSaveConfigCallback([]() {
     saveConfigFromPortal();
     restartAfterWifiSave = true;
@@ -447,6 +574,8 @@ void setupWifi() {
   wifiManager.addParameter(&timezoneParam);
   wifiManager.addParameter(&weatherLatParam);
   wifiManager.addParameter(&weatherLonParam);
+  const char* menu[] = {"wifi", "param", "info", "restart", "exit"};
+  wifiManager.setMenu(menu, 5);
   wifiManager.setAPStaticIPConfig(clockface::PortalIp, clockface::PortalGateway,
                                   clockface::PortalSubnet);
 

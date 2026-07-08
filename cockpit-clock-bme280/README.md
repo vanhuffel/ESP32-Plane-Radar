@@ -77,11 +77,13 @@ If no saved Wi-Fi credentials exist, the device starts a setup access point:
 - SSID: `CockpitClock-Setup`
 - Setup URL: `http://192.168.44.1`
 
-The portal lets you choose Wi-Fi and configure these custom fields:
+The portal lets you choose Wi-Fi. The separate **Setup** page lets you configure
+clock/weather fields:
 
 | Field | Example | Purpose |
 | --- | --- | --- |
-| Timezone | `EST5EDT,M3.2.0/2,M11.1.0/2` | POSIX timezone used for local time |
+| Timezone | `US Eastern` | Picker for common timezones |
+| Timezone string | `EST5EDT,M3.2.0/2,M11.1.0/2` | Advanced POSIX timezone override |
 | Weather latitude | `33.6407` | Location for outside air temperature |
 | Weather longitude | `-84.4277` | Location for outside air temperature |
 
@@ -101,12 +103,14 @@ device's LAN address:
 
 The serial log prints the current IP address at boot. If `.local` does not
 resolve on your computer or phone, use the IP address from your router's client
-list or the serial monitor.
+list or the serial monitor. Choose **Setup** on the portal home page to change
+timezone and weather location.
 
 ## Timezones
 
-The firmware uses POSIX timezone strings because that is what the ESP32 Arduino
-time library accepts.
+The setup page includes a picker for common timezones. Under the picker, the
+firmware still stores a POSIX timezone string because that is what the ESP32
+Arduino time library accepts.
 
 Common examples:
 
