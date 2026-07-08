@@ -347,11 +347,11 @@ void drawFace(LGFX_Sprite& g) {
 
 void drawSecondSweep(LGFX_Sprite& g, const tm& localTm) {
   const float angle = (localTm.tm_sec * 6.0f - 90.0f) * DEG_TO_RAD;
-  drawRadialLine(g, angle - 0.020f, 82, 116, clockface::White);
-  drawRadialLine(g, angle - 0.010f, 82, 116, clockface::White);
-  drawRadialLine(g, angle, 82, 116, clockface::White);
-  drawRadialLine(g, angle + 0.010f, 82, 116, clockface::White);
-  drawRadialLine(g, angle + 0.020f, 82, 116, clockface::White);
+  drawRadialLine(g, angle - 0.020f, 74, 108, clockface::White);
+  drawRadialLine(g, angle - 0.010f, 74, 108, clockface::White);
+  drawRadialLine(g, angle, 74, 108, clockface::White);
+  drawRadialLine(g, angle + 0.010f, 74, 108, clockface::White);
+  drawRadialLine(g, angle + 0.020f, 74, 108, clockface::White);
 }
 
 void drawStatusDots(LGFX_Sprite& g) {
